@@ -1,0 +1,129 @@
+#include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+#include <SoftwareSerial.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// WiFi Configuration
+#define ssid      "cam"         // WiFi SSID
+#define password  "project123"  // WiFi password
+
+// LCD Configuration
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Variables and GPIO Pin Definitions
+int addr = 0;
+int gp;
+String t1 = "NULL";
+String t2 = "NULL";
+String etatLed = "";
+ESP8266WebServer server(80);
+
+// HTML Page Function
+String getPage() {
+    String page = "<html lang=fr-FR><head><meta http-equiv='refresh' content='2'/>";
+    page += "<title>IOT BASED VEHICLE SECURITY SYSTEM</title>";
+    page += "<style>body {background-color: #9AFEFF; font-family: Arial, Helvetica, Sans-Serif; Color: #000088;}</style>";
+    page += "</head><body><h1>IOT BASED GAS BOOKING</h1>";
+    page += "<ul><li>VEHICLE STATUS: " + t1 + "</li></ul>";
+    page += "<ul><li>LOCATION: 11.1710 77." + String(gp) + "</li></ul>";
+    page += "<ul><li>TRACK LOCATION: " + t2 + "</li></ul>";
+    page += "<form action='/' method='POST'>";
+    page += "<ul><li>" + etatLed;
+    page += "<INPUT type='radio' name='LED' value='1'>VEHICLE ON";
+    page += "<INPUT type='radio' name='LED' value='0'>VEHICLE OFF</li></ul><br>";
+    page += "<INPUT type='submit' value='control'></form></body></html>";
+    return page;
+}
+
+// Handle HTTP Root
+void handleRoot() {
+    if (server.hasArg("LED")) {
+        handleSubmit();
+    } else {
+        server.send(200, "text/html", getPage());
+    }
+}
+
+// Handle Submit Action
+void handleSubmit() {
+    String LEDValue = server.arg("LED");
+
+    if (LEDValue == "0") {
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("VEHICLE OFF ");
+        digitalWrite(14, HIGH);
+        digitalWrite(15, HIGH);
+        t1 = "VEHICLE LOCKED";
+        t2 = "https://maps.app.goo.gl/D1Bf6Cg7Fpvxz62M8";
+        etatLed = "OFF";
+        delay(20000);
+    } else if (LEDValue == "1") {
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("VEHICLE ON ");
+        digitalWrite(14, LOW);
+        digitalWrite(15, LOW);
+        etatLed = "ON";
+        t1 = "NORMAL";
+        t2 = "https://maps.app.goo.gl/D1Bf6Cg7Fpvxz62M8";
+        delay(1000);
+    }
+    server.send(200, "text/html", getPage());
+}
+
+// Setup Function
+void setup() {
+    // Initialize WiFi
+    WiFi.softAP(ssid, password);
+    server.on("/", handleRoot);
+    server.begin();
+
+    // Initialize LCD
+    lcd.init();
+    lcd.backlight();
+    lcd.setCursor(0, 0);
+    lcd.print("VEHICLE ");
+    lcd.setCursor(4, 1);
+    lcd.print("SECURITY");
+
+    // Pin Configurations
+    pinMode(15, OUTPUT);
+    pinMode(14, OUTPUT);
+    pinMode(12, INPUT_PULLUP);
+    digitalWrite(15, LOW);
+    digitalWrite(14, HIGH);
+
+    // Initialize Random Seed
+    randomSeed(analogRead(0));
+    delay(1000);
+    lcd.clear();
+}
+
+// Loop Function
+void loop() {
+    server.handleClient();
+    gp = random(3701, 3793);
+
+    if (digitalRead(12) == LOW) {
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Vehicle Run...");
+        digitalWrite(14, LOW);
+        digitalWrite(15, LOW);
+        t1 = "NORMAL";
+        t2 = "https://maps.app.goo.gl/D1Bf6Cg7Fpvxz62M8";
+        delay(1000);
+    } else {
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("THEFT ALERT");
+        digitalWrite(14, LOW);
+        digitalWrite(15, HIGH);
+        t1 = "THEFT ALERT";
+        t2 = "https://maps.app.goo.gl/D1Bf6Cg7Fpvxz62M8";
+        delay(1000);
+    }
+}
